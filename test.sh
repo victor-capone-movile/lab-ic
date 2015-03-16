@@ -7,12 +7,11 @@
 #	Alterar o nome da turma
 #
 #	Modo de uso:
-#	./test.sh nome_do_programa
+#	./test.sh turma xx
 
-
-code="lab$1"
-turma="mc102wy"
-dir="$1.tests"
+turma="$1"
+code="$1/lab$2"
+dir="$1/$2.tests"
 i=1;
 
 # Se o diretorio nao existe, baixe os arquivos e crie o diretorio
@@ -21,10 +20,9 @@ if ( [ -d $dir ] ); then
 	echo -e "\033[33m W \033[0m Usando diretorio \033[33m$dir\033[0m local"
 else
 	echo -e "\033[33m W \033[0m Baixando testes..."
-	dir="$1.tests"
 	# Cria o diretorio e baixa o zip
 	$(mkdir $dir)
-	$(curl -silent -LOk https://susy.ic.unicamp.br:9999/$turma/$1/aux/testes.zip)
+	$(curl -silent -LOk https://susy.ic.unicamp.br:9999/$turma/$2/aux/testes.zip)
 
 	echo -e "\033[33m W \033[0m Descompactando arquivos..."
 
