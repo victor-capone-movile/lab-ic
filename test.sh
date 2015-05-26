@@ -7,68 +7,78 @@
 #	Alterar o nome da turma
 #
 #	Modo de uso:
-#	./test.sh nome_do_programa
+#	./test.sh turma xx
 
-
-code="$1"
-turma="mc102wy"
-
+turma="$1"
+code="$1/lab$2"
+dir="$1/$2.tests"
 i=1;
 
 # Se o diretorio nao existe, baixe os arquivos e crie o diretorio
 
-if ( [ -d aux ] ); then
-	echo -e "\033[33m W \033[0m Usando diretorio \033[33maux\033[0m local"
+if ( [ -d $dir ] ); then
+	echo -e "\033[33m W \033[0m Usando diretorio \033[33m$dir\033[0m local"
 else
 	echo -e "\033[33m W \033[0m Baixando testes..."
-	read -p $'\033[33m Q \033[0m Numero do lab (ex. 00): ' nlab
-
 	# Cria o diretorio e baixa o zip
-	$(mkdir aux)
-	$(curl -silent -LOk https://susy.ic.unicamp.br:9999/$turma/$nlab/aux/testes.zip)
+	$(mkdir $dir)
+	$(curl -silent -LOk https://susy.ic.unicamp.br:9999/$turma/$2/aux/testes.zip)
 
 	echo -e "\033[33m W \033[0m Descompactando arquivos..."
 
 	# Descompacta os arquivos e deleta o zip
-	$(unzip -q testes.zip -d aux > /dev/null 2>&1)
+	$(unzip -q testes.zip -d $dir > /dev/null 2>&1)
 	$(rm testes.zip)
 
 fi
 
 
 # Compila
-$(gcc $code.c -o $code -lm)
+echo -e "\033[31m I \033[0m Compilando $code.c"
+$(gcc $code.c -o $code -lm >> $dir/compilation)
 
-# Para cada arquivo em aux com final .in
+# Para cada arquivo em $dir com final .in
+errors=$(wc -c $dir/compilation | cut -d" " -f1)
+if [ $errors -ge 1 ]; then
+	echo "\033[31m W \033[0m Houveram erros na compilação"
+	echo "\033[33m+--------------------------------------------------------+"
+	cat $dir/compilation
+	rm -f $dir/compilation
+else
 
-echo -e "\033[31m I \033[0m Rodando testes"
+	echo -e "\033[31m I \033[0m Rodando testes"
 
-for filename in $(pwd)/aux/*.in; do
+	for filename in $(pwd)/$dir/*.in; do
 
-	# Retira a extensao do nome do arquivo
-	file="${filename%.*}"
+		# Retira a extensao do nome do arquivo
+		file="${filename%.*}"
 
-	# Itera pelos testes
-	printf "\033[33m R \033[0m Teste \033[1m%02d\033[0m... " $i
+		# Itera pelos testes
+		printf "\033[33m R \033[0m Teste \033[1m%02d\033[0m... " $i
 
-	# Cria a saida de acordo com a entrada
-	$(./$code < $file.in > $file.out)
+		# Cria a saida de acordo com a entrada
+		$(./$code < $file.in > $file.out)
 
-	# Compara com o resultado esperado e
-	# diz se o programa passou ou nao
+		# Compara com o resultado esperado e
+		# diz se o programa passou ou nao
 
-	$(diff $file.out $file.res > /tmp/thediff 2>&1)
+		$(diff $file.out $file.res > $dir/thediff 2>&1)
 
-	if [ $? != 0 ] 
-	then
-		echo -e "\033[31m FAIL\n \033[0m $(cat /tmp/thediff)"
-	else
-		echo -e "\033[32m OK"
-	fi
-
-	# Remove o arquivo de saida
-	$(rm $file.out)
-
-	# i += 1
-	i=`expr $i + 1`
-done
+		if [ $? != 0 ] 
+		then
+			echo -e "\033[31m FAIL \033[0m"
+			echo -e " \033[1m+--------------------------------------------------------+"
+			echo -e "\033[32m EXPECTED\n \033[0m $(cat $dir/thediff | grep '>')"
+			echo -e "\033[31m ACTUAL\n \033[0m $(cat $dir/thediff | grep '<')"
+			echo -e " \033[1m+--------------------------------------------------------+"
+		else
+			echo -e "\033[32m OK"
+		fi
+		# Remove os arquivo de saida
+		$(rm $file.out)
+		$(rm $dir/thediff)
+		# i += 1
+		i=`expr $i + 1`
+	done
+fi
+rm -f -r $dir
